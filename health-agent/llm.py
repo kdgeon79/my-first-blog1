@@ -12,6 +12,10 @@ class LLMRefusalError(RuntimeError):
     """안전 분류기가 요청을 거절해 폴백까지 모두 실패한 경우."""
 
 
+class LLMTruncatedError(RuntimeError):
+    """응답이 max_tokens 한도에서 잘린 경우."""
+
+
 # 파싱 결과 스키마 — structured outputs 로 항상 유효한 JSON을 보장한다.
 MEAL_SCHEMA = {
     "type": "object",
@@ -74,7 +78,12 @@ def _create(system: str, user_text: str, schema: dict | None = None) -> str:
     )
     if response.stop_reason == "refusal":
         raise LLMRefusalError("요청이 안전 정책상 처리되지 않았습니다.")
-    return next((b.text for b in response.content if b.type == "text"), "")
+    if response.stop_reason == "max_tokens":
+        raise LLMTruncatedError("응답이 최대 길이에서 잘렸습니다.")
+    text = next((b.text for b in response.content if b.type == "text"), "")
+    if not text:
+        raise LLMTruncatedError("모델 응답에 텍스트가 없습니다.")
+    return text
 
 
 def parse_meal(text: str) -> dict:

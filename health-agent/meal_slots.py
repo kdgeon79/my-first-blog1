@@ -1,5 +1,5 @@
 """KST 기준 시간/식사 슬롯 판정."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
@@ -17,6 +17,15 @@ def now_kst() -> datetime:
 
 def today_kst() -> str:
     return now_kst().date().isoformat()
+
+
+def logical_date_kst(now: datetime | None = None) -> str:
+    """식사 기록용 논리 날짜. 00:00~03:59는 전날 저녁의 연장이므로 전날로 귀속한다."""
+    now = now or now_kst()
+    d = now.date()
+    if now.hour < 4:
+        d -= timedelta(days=1)
+    return d.isoformat()
 
 
 def current_slot(now: datetime | None = None) -> str:

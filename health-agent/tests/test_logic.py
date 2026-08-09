@@ -32,9 +32,9 @@ def test_record_meal_saves_and_replies(tmp_path, monkeypatch):
     assert "단백질" in reply
     assert is_dinner is False
 
-    from meal_slots import today_kst
+    from meal_slots import logical_date_kst
 
-    saved = db.meals_on(today_kst())
+    saved = db.meals_on(logical_date_kst())
     assert len(saved) == 1
     assert saved[0]["total_kcal"] == 750
 

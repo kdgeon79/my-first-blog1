@@ -26,9 +26,9 @@ def test_save_and_query(tmp_path, monkeypatch):
 def test_recent_meals(tmp_path, monkeypatch):
     _use_tmp_db(tmp_path, monkeypatch)
 
-    from meal_slots import today_kst
+    from meal_slots import logical_date_kst
 
-    db.save_meal(today_kst(), "breakfast", "토스트", [{"name": "토스트", "quantity": "2쪽", "kcal": 300}], 300)
+    db.save_meal(logical_date_kst(), "breakfast", "토스트", [{"name": "토스트", "quantity": "2쪽", "kcal": 300}], 300)
     db.save_meal("2000-01-01", "dinner", "옛날 기록", [{"name": "밥", "quantity": "1공기", "kcal": 300}], 300)
 
     recent = db.recent_meals(days=7)

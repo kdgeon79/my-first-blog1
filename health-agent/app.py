@@ -8,6 +8,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import config
 import db
+import llm
 import logic
 from meal_slots import KST
 
@@ -41,6 +42,9 @@ def create_app() -> App:
         # DM 채널의 사용자 메시지만 처리 (봇 메시지·수정/삭제 등 subtype 이벤트 제외)
         if event.get("channel_type") != "im" or event.get("bot_id") or event.get("subtype"):
             return
+        # 다른 워크스페이스 멤버의 DM이 소유자 기록에 섞이지 않도록 소유자만 처리
+        if event.get("user") != config.SLACK_USER_ID:
+            return
         text = (event.get("text") or "").strip()
         if not text:
             return
@@ -57,6 +61,8 @@ def create_app() -> App:
                 say(reply)
                 if is_dinner:
                     say(logic.build_daily_summary())
+        except llm.LLMTruncatedError:
+            say("기록이 너무 길어서 한 번에 처리하지 못했어요. 식사를 나눠서 보내주시겠어요? 🙏")
         except Exception:
             logger.exception("메시지 처리 실패")
             say("죄송해요, 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요. 🙏")

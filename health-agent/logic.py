@@ -1,13 +1,13 @@
 """Slack 이벤트와 무관한 순수 비즈니스 로직 (테스트 대상)."""
 import db
 import llm
-from meal_slots import SLOT_LABELS, current_slot, today_kst
+from meal_slots import SLOT_LABELS, current_slot, logical_date_kst
 
 
 def record_meal(text: str, slot: str | None = None) -> tuple[str, bool]:
     """식사 텍스트를 파싱·저장하고 (응답 메시지, 저녁 여부)를 돌려준다."""
     slot = slot or current_slot()
-    meal_date = today_kst()
+    meal_date = logical_date_kst()
 
     parsed = llm.parse_meal(text)
     foods = parsed["foods"]
@@ -25,7 +25,7 @@ def record_meal(text: str, slot: str | None = None) -> tuple[str, bool]:
 
 
 def build_daily_summary(meal_date: str | None = None) -> str:
-    meal_date = meal_date or today_kst()
+    meal_date = meal_date or logical_date_kst()
     meals = db.meals_on(meal_date)
     if not meals:
         return "오늘 기록된 식사가 아직 없어요. 드신 음식을 말씀해 주시면 기록해 드릴게요! 🙂"
