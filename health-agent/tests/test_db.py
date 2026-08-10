@@ -34,3 +34,47 @@ def test_recent_meals(tmp_path, monkeypatch):
     recent = db.recent_meals(days=7)
     assert len(recent) == 1
     assert recent[0]["raw_text"] == "토스트"
+
+
+def test_last_meal_and_delete(tmp_path, monkeypatch):
+    _use_tmp_db(tmp_path, monkeypatch)
+
+    assert db.last_meal() is None
+    db.save_meal("2026-08-10", "lunch", "비빔밥", [{"name": "비빔밥", "quantity": "1그릇", "kcal": 550}], 550)
+    db.save_meal("2026-08-10", "dinner", "라면", [{"name": "라면", "quantity": "1개", "kcal": 500}], 500)
+
+    last = db.last_meal()
+    assert last["raw_text"] == "라면"
+
+    db.delete_meal(last["id"])
+    assert db.last_meal()["raw_text"] == "비빔밥"
+
+
+def test_has_meal_since(tmp_path, monkeypatch):
+    _use_tmp_db(tmp_path, monkeypatch)
+
+    db.save_meal("2026-08-10", "lunch", "비빔밥", [{"name": "비빔밥", "quantity": "1그릇", "kcal": 550}], 550)
+    assert db.has_meal_since("2026-08-10", "lunch", "2000-01-01T00:00:00")
+    assert not db.has_meal_since("2026-08-10", "dinner", "2000-01-01T00:00:00")
+    assert not db.has_meal_since("2026-08-10", "lunch", "2999-01-01T00:00:00")
+
+
+def test_settings(tmp_path, monkeypatch):
+    _use_tmp_db(tmp_path, monkeypatch)
+
+    assert db.get_setting("daily_kcal_goal") is None
+    assert db.get_setting("daily_kcal_goal", "0") == "0"
+    db.set_setting("daily_kcal_goal", "2000")
+    assert db.get_setting("daily_kcal_goal") == "2000"
+    db.set_setting("daily_kcal_goal", "1800")
+    assert db.get_setting("daily_kcal_goal") == "1800"
+
+
+def test_nutrition_cache(tmp_path, monkeypatch):
+    _use_tmp_db(tmp_path, monkeypatch)
+
+    assert db.get_cached_nutrition("김치찌개") is None
+    db.cache_nutrition("김치찌개", [{"FOOD_NM_KR": "김치찌개", "AMT_NUM1": "45"}])
+    assert db.get_cached_nutrition("김치찌개") == [{"FOOD_NM_KR": "김치찌개", "AMT_NUM1": "45"}]
+    db.cache_nutrition("없는음식", [])
+    assert db.get_cached_nutrition("없는음식") == []

@@ -6,19 +6,27 @@
 
 ## 동작 방식
 
-- **스케줄러(APScheduler)** 가 매일 09:00 / 13:00 / 19:00 (KST)에 DM으로 식사 질문을 보냅니다.
-- 사용자가 자유 텍스트로 답하면 (예: `김치찌개랑 밥 한 공기, 계란말이`)
+- **스케줄러(APScheduler)** 가 매일 09:00 / 13:00 / 19:00 (KST)에 DM으로 식사 질문을 보내고,
+  2시간 동안 해당 끼니 기록이 없으면 **한 번 더** 물어봅니다.
+- 사용자가 자유 텍스트(예: `김치찌개랑 밥 한 공기, 계란말이`)나 **음식 사진**으로 답하면
   **Claude(claude-opus-5)** 가 음식명·분량을 파싱하고 칼로리를 추정 → **SQLite**에 저장합니다.
-- 저녁 식사를 기록하면 **하루 총 칼로리 + 영양 밸런스 코멘트**를 자동으로 보냅니다.
+- `NUTRITION_API_KEY`를 설정하면 파싱된 음식명으로 **식약처 식품영양성분 DB**를 조회해
+  공식 수치로 칼로리를 보정합니다 (키가 없거나 조회 실패 시 LLM 추정만 사용).
+- 저녁 식사를 기록하면 **하루 총 칼로리 + 영양 밸런스 코멘트**를 자동으로 보내고,
+  매주 **일요일 21:00**에는 주간 리포트를 보냅니다.
 - DM 명령어:
   - `요약` — 오늘 하루 식사 요약
   - `추천` — 최근 7일 기록 기반 다음 식사 메뉴 추천
+  - `주간` — 최근 7일 주간 리포트
+  - `목표 2000` — 하루 목표 칼로리 설정 / `목표` — 현재 목표 확인 (기록 시 남은 칼로리 표시)
+  - `수정 김치찌개랑 밥` — 마지막 기록을 고쳐서 다시 계산 (같은 끼니·날짜 유지)
+  - `삭제` — 마지막 기록 삭제
   - `도움말` — 사용법 안내
 
-칼로리는 LLM 추정(오차 ±20~30%)으로 시작하며, 추후 식약처 식품영양성분 DB 연동으로 정확도를
-개선할 수 있습니다. 파싱 결과는 structured outputs(JSON 스키마)로 받아 항상 유효한 JSON이
-보장됩니다. 또한 안전 분류기의 드문 오탐으로 요청이 거절될 경우 서버 측에서 자동으로
-`claude-opus-4-8`로 폴백하도록 설정되어 있습니다.
+칼로리는 기본적으로 LLM 추정(오차 ±20~30%)이며, 식약처 DB 보정으로 정확도를 높일 수 있습니다.
+파싱 결과는 structured outputs(JSON 스키마)로 받아 항상 유효한 JSON이 보장됩니다. 또한 안전
+분류기의 드문 오탐으로 요청이 거절될 경우 서버 측에서 자동으로 `claude-opus-4-8`로 폴백하도록
+설정되어 있습니다. 새벽(00~04시)에 기록한 야식은 전날 저녁으로 집계됩니다.
 
 ## Slack 앱 설정
 
@@ -27,11 +35,18 @@
 
 1. https://api.slack.com/apps → **Create New App** (From scratch)
 2. **Socket Mode** 활성화 → App-Level Token 발급 (`connections:write` 스코프) → `SLACK_APP_TOKEN`
-3. **OAuth & Permissions** → Bot Token Scopes에 `chat:write`, `im:history`, `im:read`, `im:write` 추가
+3. **OAuth & Permissions** → Bot Token Scopes에 `chat:write`, `im:history`, `im:read`, `im:write`,
+   `files:read`(사진 기록용) 추가
    → 워크스페이스에 설치 → Bot User OAuth Token → `SLACK_BOT_TOKEN`
 4. **Event Subscriptions** → Enable Events → Subscribe to bot events에 `message.im` 추가
 5. **App Home** → Messages Tab 활성화 ("Allow users to send Slash commands and messages from the messages tab" 체크)
 6. Slack 프로필 → 더보기(⋯) → **멤버 ID 복사** → `SLACK_USER_ID`
+
+### (선택) 식약처 식품영양성분 DB
+
+1. [공공데이터포털](https://www.data.go.kr)에서 "식품의약품안전처_식품영양성분DB" 검색 → 활용신청
+2. 발급된 인증키를 `.env`의 `NUTRITION_API_KEY`에 설정
+3. 조회 결과는 로컬 `nutrition_cache` 테이블에 캐시되어 같은 음식은 재조회하지 않습니다
 
 ## 실행
 
@@ -57,10 +72,11 @@ LLM 호출은 테스트에서 모두 모킹되므로 API 키 없이 실행됩니
 
 | 파일 | 역할 |
 |------|------|
-| `app.py` | Slack Bolt(Socket Mode) 앱 + 스케줄러 기동 |
-| `logic.py` | 기록/요약/추천 비즈니스 로직 (테스트 대상) |
-| `llm.py` | Claude API 래퍼 (파싱·요약·추천 프롬프트) |
-| `db.py` | SQLite 저장소 (`meals` 테이블) |
+| `app.py` | Slack Bolt(Socket Mode) 앱 + 스케줄러(식사 질문·리마인더·주간 리포트) |
+| `logic.py` | 기록/수정/삭제/목표/요약/추천/주간 리포트 비즈니스 로직 (테스트 대상) |
+| `llm.py` | Claude API 래퍼 (텍스트·사진 파싱, DB 보정, 요약·추천·리포트 프롬프트) |
+| `nutrition.py` | 식약처 식품영양성분 DB 조회·보정 (키 없으면 무동작) |
+| `db.py` | SQLite 저장소 (`meals`, `settings`, `nutrition_cache` 테이블) |
 | `meal_slots.py` | KST 시간대·식사 슬롯 판정 |
 | `config.py` | `.env` 로딩 및 설정 |
 

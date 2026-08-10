@@ -16,6 +16,13 @@ SLACK_USER_ID = os.environ.get("SLACK_USER_ID", "")
 # Anthropic — API 키는 SDK가 ANTHROPIC_API_KEY 환경 변수에서 직접 읽는다.
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5")
 
+# 식약처 식품영양성분 DB (공공데이터포털) — 키가 없으면 LLM 추정만 사용
+NUTRITION_API_KEY = os.environ.get("NUTRITION_API_KEY", "")
+NUTRITION_API_URL = os.environ.get(
+    "NUTRITION_API_URL",
+    "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02",
+)
+
 # 데이터
 DB_PATH = os.environ.get("DB_PATH", str(BASE_DIR / "meals.db"))
 
