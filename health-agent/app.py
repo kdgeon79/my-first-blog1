@@ -1,5 +1,4 @@
 """건강 관리 Slack 에이전트 — Socket Mode 앱 본체."""
-import base64
 import logging
 import re
 import urllib.request
@@ -67,8 +66,7 @@ def _handle_image(event, say) -> bool:
     caption = (event.get("text") or "").strip()
     say("📸 사진을 확인하고 있어요...")
     data = _download_slack_image(file["url_private_download"])
-    image_b64 = base64.standard_b64encode(data).decode("utf-8")
-    reply, is_dinner = logic.record_meal_from_image(image_b64, file["mimetype"], caption)
+    reply, is_dinner = logic.record_meal_from_image(data, file["mimetype"], caption)
     say(reply)
     if is_dinner:
         say(logic.build_daily_summary())
@@ -134,6 +132,9 @@ def create_app() -> App:
             say("죄송해요, 이 내용은 정책상 처리할 수 없었어요. 다른 표현으로 적어주시면 기록해 드릴게요. 🙏")
         except llm.LLMTruncatedError:
             say("기록이 너무 길어서 한 번에 처리하지 못했어요. 식사를 나눠서 보내주시겠어요? 🙏")
+        except llm.LLMCliError:
+            logger.exception("로컬 LLM CLI 실행 실패")
+            say("로컬 LLM 실행에 실패했어요. CLI 로그인 상태(예: `codex login status`)를 확인해 주세요. 🙏")
         except Exception:
             logger.exception("메시지 처리 실패")
             say("죄송해요, 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요. 🙏")

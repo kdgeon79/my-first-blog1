@@ -50,12 +50,12 @@ def record_meal(text: str, slot: str | None = None) -> tuple[str, bool]:
 
 
 def record_meal_from_image(
-    image_b64: str, media_type: str, caption: str = "", slot: str | None = None
+    image_bytes: bytes, media_type: str, caption: str = "", slot: str | None = None
 ) -> tuple[str, bool]:
     """식사 사진을 파싱·저장하고 (응답 메시지, 저녁 여부)를 돌려준다."""
     slot = slot or current_slot()
     meal_date = logical_date_kst()
-    parsed = nutrition.refine(llm.parse_meal_image(image_b64, media_type, caption))
+    parsed = nutrition.refine(llm.parse_meal_image(image_bytes, media_type, caption))
     raw_text = f"[사진] {caption}".strip()
     return _save_and_reply(parsed, raw_text, slot, meal_date), slot == "dinner"
 

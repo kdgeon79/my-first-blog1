@@ -146,9 +146,9 @@ def test_weekly_stats_and_report(tmp_path, monkeypatch):
 
 def test_record_meal_from_image(tmp_path, monkeypatch):
     _use_tmp_db(tmp_path, monkeypatch)
-    monkeypatch.setattr(llm, "parse_meal_image", lambda b64, mt, caption="": dict(_PARSED))
+    monkeypatch.setattr(llm, "parse_meal_image", lambda data, mt, caption="": dict(_PARSED))
 
-    reply, is_dinner = logic.record_meal_from_image("aGk=", "image/png", "점심입니다", slot="lunch")
+    reply, is_dinner = logic.record_meal_from_image(b"fake-image", "image/png", "점심입니다", slot="lunch")
     assert "라면" in reply
     assert is_dinner is False
     assert db.last_meal()["raw_text"] == "[사진] 점심입니다"
