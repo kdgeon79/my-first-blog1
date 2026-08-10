@@ -50,13 +50,16 @@ def test_last_meal_and_delete(tmp_path, monkeypatch):
     assert db.last_meal()["raw_text"] == "비빔밥"
 
 
-def test_has_meal_since(tmp_path, monkeypatch):
+def test_has_meal_and_any_meal_since(tmp_path, monkeypatch):
     _use_tmp_db(tmp_path, monkeypatch)
 
     db.save_meal("2026-08-10", "lunch", "비빔밥", [{"name": "비빔밥", "quantity": "1그릇", "kcal": 550}], 550)
-    assert db.has_meal_since("2026-08-10", "lunch", "2000-01-01T00:00:00")
-    assert not db.has_meal_since("2026-08-10", "dinner", "2000-01-01T00:00:00")
-    assert not db.has_meal_since("2026-08-10", "lunch", "2999-01-01T00:00:00")
+    # 슬롯별 존재 여부 — 질문 전에 미리 기록해도 리마인더가 안 가야 한다
+    assert db.has_meal("2026-08-10", "lunch")
+    assert not db.has_meal("2026-08-10", "dinner")
+    # 질문 이후 아무 끼니든 기록되면 리마인더가 안 가야 한다
+    assert db.any_meal_since("2000-01-01T00:00:00")
+    assert not db.any_meal_since("2999-01-01T00:00:00")
 
 
 def test_settings(tmp_path, monkeypatch):

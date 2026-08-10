@@ -152,3 +152,20 @@ def test_record_meal_from_image(tmp_path, monkeypatch):
     assert "라면" in reply
     assert is_dinner is False
     assert db.last_meal()["raw_text"] == "[사진] 점심입니다"
+
+
+def test_correct_last_meal_preserves_record_on_parse_failure(tmp_path, monkeypatch):
+    _use_tmp_db(tmp_path, monkeypatch)
+    monkeypatch.setattr(llm, "parse_meal", lambda text: dict(_PARSED))
+    logic.record_meal("라면", slot="lunch")
+
+    def boom(text):
+        raise RuntimeError("api down")
+
+    monkeypatch.setattr(llm, "parse_meal", boom)
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        logic.correct_last_meal("김밥")
+    # 파싱 실패 시 원본 기록은 그대로 남아야 한다
+    assert db.last_meal()["raw_text"] == "라면"

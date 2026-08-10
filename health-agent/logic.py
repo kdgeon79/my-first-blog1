@@ -77,8 +77,9 @@ def correct_last_meal(text: str) -> tuple[str, bool]:
     meal = db.last_meal()
     if not meal:
         return "수정할 식사 기록이 없어요. 새로 기록하려면 드신 음식을 그냥 보내주세요!", False
-    db.delete_meal(meal["id"])
+    # 파싱이 실패해도 원본 기록이 남도록, 파싱을 끝낸 뒤에 삭제한다
     parsed = nutrition.refine(llm.parse_meal(text))
+    db.delete_meal(meal["id"])
     reply = _save_and_reply(parsed, text, meal["slot"], meal["meal_date"], prefix="🔁 마지막 기록을 수정했어요!\n")
     return reply, False
 

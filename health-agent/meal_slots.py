@@ -15,10 +15,6 @@ def now_kst() -> datetime:
     return datetime.now(KST)
 
 
-def today_kst() -> str:
-    return now_kst().date().isoformat()
-
-
 def logical_date_kst(now: datetime | None = None) -> str:
     """식사 기록용 논리 날짜. 00:00~03:59는 전날 저녁의 연장이므로 전날로 귀속한다."""
     now = now or now_kst()

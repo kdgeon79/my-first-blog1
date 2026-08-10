@@ -91,11 +91,18 @@ def delete_meal(meal_id: int) -> None:
         conn.execute("DELETE FROM meals WHERE id = ?", (meal_id,))
 
 
-def has_meal_since(meal_date: str, slot: str, since_iso: str) -> bool:
+def has_meal(meal_date: str, slot: str) -> bool:
     with _connect() as conn:
         row = conn.execute(
-            "SELECT 1 FROM meals WHERE meal_date = ? AND slot = ? AND created_at >= ? LIMIT 1",
-            (meal_date, slot, since_iso),
+            "SELECT 1 FROM meals WHERE meal_date = ? AND slot = ? LIMIT 1", (meal_date, slot)
+        ).fetchone()
+    return row is not None
+
+
+def any_meal_since(since_iso: str) -> bool:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM meals WHERE created_at >= ? LIMIT 1", (since_iso,)
         ).fetchone()
     return row is not None
 

@@ -33,7 +33,7 @@ WEEKLY_KEYWORDS = {"주간", "주간 리포트", "주간리포트"}
 DELETE_KEYWORDS = {"삭제", "기록 삭제", "마지막 삭제", "취소"}
 HELP_KEYWORDS = {"도움말", "help", "사용법"}
 
-GOAL_RE = re.compile(r"^목표(?:\s+(\d{3,5})\s*(?:kcal|칼로리)?)?$")
+GOAL_RE = re.compile(r"^목표(?:\s*(\d{3,5})\s*(?:kcal|칼로리)?)?$")
 CORRECT_RE = re.compile(r"^수정[:\s]\s*(.+)$", re.DOTALL)
 
 HELP_TEXT = (
@@ -123,11 +123,15 @@ def create_app() -> App:
             elif correct_match:
                 reply, _ = logic.correct_last_meal(correct_match.group(1).strip())
                 say(reply)
+            elif text == "수정":
+                say("수정할 내용을 함께 보내주세요. 예: `수정 김치찌개랑 밥 한 공기`")
             else:
                 reply, is_dinner = logic.record_meal(text)
                 say(reply)
                 if is_dinner:
                     say(logic.build_daily_summary())
+        except llm.LLMRefusalError:
+            say("죄송해요, 이 내용은 정책상 처리할 수 없었어요. 다른 표현으로 적어주시면 기록해 드릴게요. 🙏")
         except llm.LLMTruncatedError:
             say("기록이 너무 길어서 한 번에 처리하지 못했어요. 식사를 나눠서 보내주시겠어요? 🙏")
         except Exception:
@@ -163,7 +167,9 @@ def send_meal_prompt(app: App, slot: str) -> None:
 
 def send_reminder(app: App, slot: str, meal_date: str, since_iso: str) -> None:
     try:
-        if db.has_meal_since(meal_date, slot, since_iso):
+        # 질문 전에 미리 기록했거나(슬롯 일치), 질문 이후 어떤 끼니든 기록했으면
+        # (예: 10:30 이후 답변이 점심으로 분류되는 경우) 리마인더를 보내지 않는다
+        if db.has_meal(meal_date, slot) or db.any_meal_since(since_iso):
             return
         app.client.chat_postMessage(
             channel=_dm_channel(app),
